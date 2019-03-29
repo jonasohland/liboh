@@ -375,6 +375,8 @@ namespace o::io {
      * a callback at later time. The waiting period will begin when the callback
      * is assigned to the timer.
      *
+     * @snippet simple_timer.cpp simpletimer_example
+     *
      * @tparam  Duration    Type of the duration. Example:
      *                      std::chrono::milliseconds.
      * @tparam  Clock       Type of the clock.
@@ -442,6 +444,17 @@ namespace o::io {
      * a callback repeatedly. Repeated execution will start when the callback is
      * assigned. is assigned to the timer.
      *
+     * @snippet simple_repeat_timer.cpp repeattimer_example
+     *
+     * Will output:
+     * @code
+     * 4
+     * 3
+     * 2
+     * 1
+     * 0 ...booom!!
+     * @endcode
+     *
      * @tparam  Duration    Type of the duration.
      * @tparam  Clock       Type of the clock.
      * @param [in]  ctx The `boost::asio::io_context` to wait on.
@@ -459,6 +472,7 @@ namespace o::io {
     /**
      * Add a single-time callback to an existing timer. This callback will be
      * called immediately if the timer is expired.
+     *
      *
      * @tparam  Handler Type of the handler.
      * @tparam  Clock   Type of the clock.
@@ -522,6 +536,8 @@ namespace o::io {
         return std::bind(std::forward<Args>(args)..., std::placeholders::_1);
     }
 
+    // TODO could be a useful addition
+    /*
     template <typename Clock, typename Duration>
     struct metro {
 
@@ -555,5 +571,6 @@ namespace o::io {
         std::vector<repeat_callback> cbs_;
         boost::asio::basic_waitable_timer<Clock> timer_;
     };
+    */
 
 } // namespace o::io
