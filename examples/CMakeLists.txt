@@ -9,3 +9,6 @@ liboh_setup(SimpleTimer)
 
 add_executable(SimpleRepeatTimer simple_repeat_timer.cpp)
 liboh_setup(SimpleRepeatTimer)
+
+add_executable(UdpEcho udp_echo.cpp)
+liboh_setup(UdpEcho)
