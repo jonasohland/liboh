@@ -1,5 +1,5 @@
 //
-// This file is part of the liboh project
+// This File is part of the liboh project.
 //
 // Copyright (c) 2019, Jonas Ohland
 //
