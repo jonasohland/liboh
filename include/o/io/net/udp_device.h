@@ -275,7 +275,7 @@ namespace o::io::net {
         }
 
         void on_udp_error(
-            udp_device<MessageContainer, ConcurrencyOption>::error_case eca,
+            typename udp_device<MessageContainer, ConcurrencyOption>::error_case eca,
             boost::system::error_code ec) override {
 
             if (error_handler_) error_handler_.get()(ec);
