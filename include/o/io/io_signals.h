@@ -61,7 +61,7 @@ namespace o::io {
          * @author  Jonas Ohland
          * @date    21.03.2019
          */
-        virtual void app_prepare() override { setup_signals(); }
+        virtual void app_prepare() final { setup_signals(); }
 
         /**
          * implement to be notified about signals you subscribed to with
@@ -95,6 +95,15 @@ namespace o::io {
                         }
                     }
                 });
+        }
+        
+        /**
+         * Register a new signal to listen for.
+         *
+         * @param signal The signal to listen for.
+         */
+        void sig_listen(int signal) {
+            signals().add(signal);
         }
 
         void sig_close() { signal_set_.cancel(); }

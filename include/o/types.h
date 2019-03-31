@@ -123,16 +123,66 @@ namespace o {
 
         // used to indicate that the object will be used in a single threaded context
         struct unsafe {
-            static constexpr const int io_ctx_ccy_hint = 1;
+            static constexpr const bool internal_api_safe = false;
+            static constexpr const bool external_api_safe = false;
+            static constexpr const bool app_manages_threads = true;
+            static constexpr const bool asio_prefer_strands = true;
+            static constexpr const int asio_io_ctx_ccy_hint = 1;
         };
 
         // obvious
         struct safe {
-            static constexpr const int io_ctx_ccy_hint = BOOST_ASIO_CONCURRENCY_HINT_SAFE;
+            static constexpr const bool internal_api_safe = false;
+            static constexpr const bool external_api_safe = false;
+            static constexpr const bool app_manages_threads = true;
+            static constexpr const bool prefer_strands = true;
+            static constexpr const int asio_io_ctx_ccy_hint = BOOST_ASIO_CONCURRENCY_HINT_SAFE;
         };
         
         struct none {
-            static constexpr const int io_ctx_ccy_hint = BOOST_ASIO_CONCURRENCY_HINT_SAFE;
+            static constexpr const bool internal_api_safe = false;
+            static constexpr const bool external_api_safe = false;
+            static constexpr const bool app_manages_threads = false;
+            static constexpr const bool prefer_strands = true;
+            static constexpr const int asio_io_ctx_ccy_hint = BOOST_ASIO_CONCURRENCY_HINT_SAFE;
+        };
+
+        template <typename ConcurrencyOption>
+        struct opt_internal_call_safe {
+            static constexpr const bool value =
+                ConcurrencyOption::internal_api_safe;
+        };
+
+        template <typename ConcurrencyOption>
+        struct opt_external_call_safe {
+            static constexpr const bool value =
+                ConcurrencyOption::external_api_safe;
+        };
+
+        template <typename ConcurrencyOption>
+        struct opt_app_manages_threads {
+            static constexpr const bool value =
+                ConcurrencyOption::app_manages_threads;
+        };
+
+        template <typename ConcurrencyOption>
+        struct opt_prefer_strands {
+            static constexpr const bool value =
+                ConcurrencyOption::prefer_strands;
+        };
+
+        template <typename ConcurrencyOption>
+        struct opt_int_sync_strands {
+            static constexpr const bool value =
+                opt_internal_call_safe<ConcurrencyOption>::value &&
+                opt_prefer_strands<ConcurrencyOption>::value;
+        };
+
+        template <typename ConcurrencyOption>
+        struct opt_int_sync_no_strands {
+            static constexpr const bool value =
+                opt_internal_call_safe<ConcurrencyOption>::value &&
+                !opt_prefer_strands<ConcurrencyOption>::value;
         };
 
         template <typename T>

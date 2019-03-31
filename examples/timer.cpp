@@ -98,7 +98,7 @@ struct app : public app_base {
 
     // The app was allowed to exit either through a signal from the os or via
     // the app_allow_exit() call
-    void on_app_exit(int reason) override {
+    int on_app_exit(int reason) override {
 
         std::cout << "Exit reason: " << reason << std::endl;
 
@@ -110,6 +110,8 @@ struct app : public app_base {
 
         // cancel the exit timeout
         o::io::weak_timer_cancel(timer_);
+        
+        return 0;
     }
 
     bool stop = false;
@@ -121,7 +123,5 @@ int main() {
 
     app a;
 
-    a.run();
-
-    return 0;
+    return a.run();
 }

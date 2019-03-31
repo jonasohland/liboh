@@ -36,30 +36,76 @@
 #include <string>
 
 namespace o::io {
+    
+    namespace detail {
+
+        template <bool HasStrand>
+        class istream_listener_strand_base;
+
+        template <>
+        class istream_listener_strand_base<false> {
+          public:
+            explicit istream_listener_strand_base(
+                boost::asio::io_context& ctx){};
+
+          private:
+        };
+
+        template <>
+        class istream_listener_strand_base<true> {
+          public:
+            explicit istream_listener_strand_base(boost::asio::io_context& ctx)
+                : istream_strand_(ctx) {}
+
+            boost::asio::io_context::strand& istream_strand() {
+                return istream_strand_;
+            }
+
+          private:
+            boost::asio::io_context::strand istream_strand_;
+        };
+
+        template <bool HasMutex>
+        class istream_listener_mutex_base;
+
+        template <>
+        class istream_listener_mutex_base<false> {};
+
+        template <>
+        class istream_listener_mutex_base<true> {
+          public:
+            explicit istream_listener_mutex_base(boost::asio::io_context& ctx) {
+            }
+
+            std::mutex& istream_mtx() { return mtx_; }
+
+          private:
+            std::mutex mtx_;
+        };
+    }
 
     /** An io application can inherit from this class if it wants to read data
-     from stdin \code{.cpp} using app_base =
-     o::io::simple_io_app<o::threads::none>;
-
-     struct app : public app_base, public o::io::istream_listener {
-
-     app() : o::io::istream_listener(this->context())
-     {}
-
-     virtual void on_console_input(std::string str) override {
-     std::cout << "You entered: " << str << std::endl;
-     }
-     };
-     \endcode
+     from stdin
      */
-    class istream_listener {
+    template <typename ConcurrencyOptions>
+    class istream_listener
+        : detail::istream_listener_mutex_base<
+              o::ccy::opt_internal_call_safe<ConcurrencyOptions>::value &&
+              !o::ccy::opt_prefer_strands<ConcurrencyOptions>::value>,
+          detail::istream_listener_strand_base<
+              o::ccy::opt_internal_call_safe<ConcurrencyOptions>::value &&
+              o::ccy::opt_prefer_strands<ConcurrencyOptions>::value> {
 
       public:
         istream_listener() = delete;
 
+        using strand_base = detail::istream_listener_strand_base<
+            o::ccy::opt_internal_call_safe<ConcurrencyOptions>::value &&
+            o::ccy::opt_prefer_strands<ConcurrencyOptions>::value>;
+
         /** construct the stream listener and give it a context to operate on */
         explicit istream_listener(boost::asio::io_context& ctx)
-            : std_istream_desc_(ctx, ::dup(STDIN_FILENO)) {
+            : strand_base(ctx), std_istream_desc_(ctx, ::dup(STDIN_FILENO)) {
             do_read();
         }
 
@@ -68,11 +114,41 @@ namespace o::io {
         virtual void on_console_input(std::string) = 0;
 
       private:
-        void handle_istream_read(const boost::system::error_code& ec,
-                                 std::size_t length) {
-
+                  
+        // synchronized handler
+        template<typename Opt = ConcurrencyOptions>
+        typename std::enable_if<
+            o::ccy::opt_internal_call_safe<Opt>::value>::type
+        handle_istream_read(const boost::system::error_code& ec,
+                            std::size_t length) {
+            
+            if constexpr(!o::ccy::opt_prefer_strands<Opt>::value)
+                this->istream_mtx().lock();
+            
+            
             if (!ec) {
+                on_console_input(std::string(
+                    boost::asio::buffers_begin(input_buffer_.data()),
+                    boost::asio::buffers_begin(input_buffer_.data()) +
+                        input_buffer_.size() - 1));
+                input_buffer_.consume(input_buffer_.size());
 
+                do_read();
+            }
+            
+            if constexpr(!o::ccy::opt_prefer_strands<Opt>::value)
+                this->istream_mtx().unlock();
+            
+            
+        }
+
+        // unsynchronized handler
+        template<typename Opt = ConcurrencyOptions>
+        typename std::enable_if<
+            !o::ccy::opt_internal_call_safe<Opt>::value>::type
+        handle_istream_read(const boost::system::error_code& ec,
+                            std::size_t length) {
+            if (!ec) {
                 on_console_input(std::string(
                     boost::asio::buffers_begin(input_buffer_.data()),
                     boost::asio::buffers_begin(input_buffer_.data()) +
@@ -84,10 +160,27 @@ namespace o::io {
         }
 
         void do_read() {
-            boost::asio::async_read_until(
-                std_istream_desc_, input_buffer_, '\n',
-                std::bind(&istream_listener::handle_istream_read, this,
-                          std::placeholders::_1, std::placeholders::_2));
+
+            // internal synchronization w. strands
+            // read and bind the read handler to a strand
+            if constexpr(o::ccy::opt_prefer_strands<ConcurrencyOptions>::value &&
+                          o::ccy::opt_internal_call_safe<ConcurrencyOptions>::value) {
+
+                boost::asio::async_read_until(
+                    std_istream_desc_, input_buffer_, '\n',
+                    boost::asio::bind_executor(
+                        this->istream_strand(),
+                        std::bind(&istream_listener::handle_istream_read,
+                                  this, std::placeholders::_1,
+                                  std::placeholders::_2)));
+            }
+            // no synchronization or synchronization w. mutex
+            else {
+                boost::asio::async_read_until(
+                    std_istream_desc_, input_buffer_, '\n',
+                    std::bind(&istream_listener::handle_istream_read, this,
+                              std::placeholders::_1, std::placeholders::_2));
+            }
         }
 
         boost::asio::streambuf input_buffer_;

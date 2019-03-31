@@ -32,14 +32,6 @@
 #include "io/sin_listener.h"
 #include "io/thread_pool.h"
 #include "io/timer.h"
+#include "io/endpoints.h"
 
-namespace o::io {
 
-    template <typename EndpointType>
-    EndpointType set_port(EndpointType endpoint, short port) {
-        auto output = endpoint;
-        output.port(port);
-        return output;
-    }
-
-} // namespace o::io

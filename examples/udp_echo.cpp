@@ -9,7 +9,7 @@ class udp_echo : public o::io::signal_listener_app<o::ccy::none>, public udp {
 
     void on_app_started() override { this->udp_bind(6000); }
 
-    void on_app_exit(int reason) override { this->udp_close(); }
+    int on_app_exit(int reason) override { this->udp_close(); return 0; }
 
     void on_data_received(std::string&& data) override {
         std::this_thread::sleep_for(std::chrono::milliseconds(3));
@@ -35,7 +35,5 @@ int main() {
 
     udp_echo echo;
 
-    echo.run();
-
-    return 0;
+    return echo.run();;
 }
