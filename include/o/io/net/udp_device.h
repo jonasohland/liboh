@@ -12,8 +12,8 @@
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -71,6 +71,14 @@ namespace o::io::net {
         virtual void on_data_received(MessageContainer&&) = 0;
 
         /**
+         * Called when a send operation completes.
+         *
+         * @author  Jonas Ohland
+         * @date    31.03.2019
+         */
+        virtual void on_data_sent() = 0;
+
+        /**
          * Executes the UDP error action
          *
          * @author  Jonas Ohland
@@ -83,7 +91,7 @@ namespace o::io::net {
                                   boost::system::error_code eco) {}
 
         /**
-         * UDP bind
+         * Bind the socket to an endpoint.
          *
          * @author  Jonas Ohland
          * @date    16.03.2019
@@ -92,40 +100,50 @@ namespace o::io::net {
          */
         void udp_bind(boost::asio::ip::udp::endpoint local_endp) {
 
+            local_endp_ = local_endp;
+
             boost::system::error_code ec;
 
-            if (!sock_.is_open()) sock_.open(local_endp.protocol());
+            if (!sock_.is_open()) sock_.open(local_endp_.protocol());
 
-            sock_.bind(local_endp, ec);
+            sock_.bind(local_endp_, ec);
 
             if (ec) return on_udp_error(error_case::bind, ec);
 
             impl_udp_do_receive();
         }
 
+        /**
+         * bind the socket to the default ipv4 endpoint
+         * with the specified port;
+         *
+         * @author  Jonas Ohland
+         * @date    31.03.2019
+         *
+         * @param   port    The port.
+         */
         void udp_bind(short port) {
             udp_bind(boost::asio::ip::udp::endpoint(
                 boost::asio::ip::udp::v4(), port));
         }
 
+        /**
+         * bind the socket to the default ipv6 endpoint
+         * with the specified port;
+         *
+         * @author  Jonas Ohland
+         * @date    31.03.2019
+         *
+         * @param   port    The port.
+         * @param   v6hint  The 6hint.
+         */
         void udp_bind(short port, use_v6 v6hint) {
             udp_bind(boost::asio::ip::udp::endpoint(
                 boost::asio::ip::udp::v6(), port));
         }
 
-        void udp_connect(boost::asio::ip::udp::endpoint remote_endp) {
-
-            boost::system::error_code ec;
-
-            if (!sock_.is_open()) sock_.open(remote_endp.protocol());
-
-            sock_.connect(remote_endp, ec);
-
-            if (ec) return on_udp_error(error_case::connect, ec);
-        }
-
         /**
-         * UDP close
+         * close the socket
          *
          * @author  Jonas Ohland
          * @date    16.03.2019
@@ -134,18 +152,45 @@ namespace o::io::net {
             if (sock_.is_open()) sock_.close();
         }
 
-        void send(MessageContainer&& thing_to_send) {
+        /**
+         * send a message to the specified endpoint
+         *
+         * @author  Jonas Ohland
+         * @date    31.03.2019
+         *
+         * @param           endpoint        The endpoint.
+         * @param [in,out]  thing_to_send   The thing to send.
+         */
+        void send(boost::asio::ip::udp::endpoint endpoint,
+                  MessageContainer&& message) {
 
-            MessageContainer* output_str = new MessageContainer(
-                std::forward<MessageContainer>(thing_to_send));
+            MessageContainer* output_data =
+                new MessageContainer(std::forward<MessageContainer>(message));
 
-            sock_.async_send(
-                boost::asio::buffer(output_str->data(), output_str->size()),
+            sock_.async_send_to(
+                boost::asio::buffer(output_data->data(), output_data->size()),
+                endpoint,
                 std::bind(&udp_device::impl_udp_on_send_done, this,
-                          std::placeholders::_1, output_str));
+                          std::placeholders::_1, output_data));
         }
 
-        boost::asio::ip::udp::endpoint& last_remote() { return last_endp_; }
+        void answer(MessageContainer&& message) {
+
+            MessageContainer* output_data =
+                new MessageContainer(std::forward<MessageContainer>(message));
+
+            sock_.async_send_to(
+                boost::asio::buffer(output_data->data(), output_data->size()),
+                boost::asio::ip::udp::endpoint(last_remote()),
+                std::bind(&udp_device::impl_udp_on_send_done, this,
+                          std::placeholders::_1, output_data));
+        }
+
+        void do_read() { impl_udp_do_receive(); }
+
+        boost::asio::ip::udp::endpoint& last_remote() {
+            return last_remote_endp_;
+        }
 
         boost::asio::basic_datagram_socket<boost::asio::ip::udp>& udp_sock() {
             return sock_;
@@ -165,23 +210,27 @@ namespace o::io::net {
             on_data_received(boost::beast::buffers_to_string(buf_.data()));
 
             buf_.consume(bytes_s);
-
-            impl_udp_do_receive();
         }
 
         void impl_udp_do_receive() {
             sock_.async_receive_from(
-                buf_.prepare(1024), last_endp_,
+                buf_.prepare(1024), last_remote_endp_,
                 std::bind(&udp_device::udp_on_data_received, this,
                           std::placeholders::_1, std::placeholders::_2));
         }
 
         void impl_udp_on_send_done(boost::system::error_code ec,
                                    std::string* out_str) {
+
+            if (ec) return on_udp_error(error_case::connect, ec);
+
             delete out_str;
+
+            on_data_sent();
         }
 
-        boost::asio::ip::udp::endpoint last_endp_;
+        boost::asio::ip::udp::endpoint last_remote_endp_;
+        boost::asio::ip::udp::endpoint local_endp_;
 
         boost::asio::streambuf buf_;
         boost::asio::ip::udp::socket sock_;
@@ -213,7 +262,7 @@ namespace o::io::net {
         explicit udp_port(boost::asio::io_context& ctx)
             : udp_device<MessageContainer, ConcurrencyOption>(ctx) {}
 
-        virtual void on_data_received(MessageContainer&& data) override {
+        void on_data_received(MessageContainer&& data) override {
 
             if (data_handler_) {
 
@@ -223,6 +272,13 @@ namespace o::io::net {
 
                 opt_do_unlock();
             }
+        }
+
+        void on_udp_error(
+            udp_device<MessageContainer, ConcurrencyOption>::error_case eca,
+            boost::system::error_code ec) override {
+
+            if (error_handler_) error_handler_.get()(ec);
         }
 
         // TODO replace with std::optional and deprecate Xcode 9 (alias buy new
