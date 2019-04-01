@@ -26,6 +26,7 @@
 #pragma once
 
 #include "../types.h"
+#include "../ccy.h"
 #include <boost/asio.hpp>
 
 namespace o::io {
@@ -85,11 +86,10 @@ namespace o::io {
 
           protected:
             /** Wait for all threads to exit. */
-            void await_threads_end() const {
-                for (auto& thread : worker_threads_) {
-                    if (thread)
-                        if (thread->joinable()) thread->join();
-                }
+            void await_threads_end() {
+                std::for_each(std::begin(worker_threads_),
+                              std::end(worker_threads_),
+                              o::ccy::thread_join<std::thread>());
             }
 
             /**
@@ -99,8 +99,8 @@ namespace o::io {
              */
             void create_threads(const int num_threads = 1) {
                 for (auto i = 0; i < num_threads; ++i) {
-                    worker_threads_.push_back(std::make_unique<std::thread>(
-                        std::bind(&thread_base::do_run, this)));
+                    worker_threads_.emplace_back(
+                        std::bind(&thread_base::do_run, this));
                 }
             }
 
@@ -117,7 +117,7 @@ namespace o::io {
 
           private:
             std::mutex thread_base_mutex_;
-            std::vector<std::unique_ptr<std::thread>> worker_threads_;
+            std::vector<std::thread> worker_threads_;
         };
     }
     
@@ -145,13 +145,22 @@ namespace o::io {
         /** underlying executor type */
         using executor_type = boost::asio::io_context::executor_type;
 
-        /** Run the application in this thread. This call will return as
+        /** Run the application the callers this thread. This call will return as
          * soon as
          * the application runs out of work. */
         template <typename Opt = ConcurrencyOptions>
-        typename ccy::opt_enable_if_ccy_unaware<Opt, int>::type run() {
+        typename std::enable_if<!ccy::opt_app_manages_threads<Opt>::value,
+                                int>::type
+        run() {
             app_prepare();
             do_run();
+            return return_code_;
+        }
+
+        template <typename Opt = ConcurrencyOptions>
+        typename std::enable_if<ccy::opt_app_manages_threads<Opt>::value,
+                                int>::type
+        return_code() const {
             return return_code_;
         }
 
