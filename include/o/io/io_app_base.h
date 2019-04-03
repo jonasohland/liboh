@@ -12,8 +12,8 @@
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -25,8 +25,9 @@
 
 #pragma once
 
-#include "../types.h"
 #include "../ccy.h"
+#include "../sequence.h"
+#include "../types.h"
 #include <boost/asio.hpp>
 
 namespace o::io {
@@ -98,10 +99,8 @@ namespace o::io {
              * @param   num_threads (Optional) Number of threads.
              */
             void create_threads(const int num_threads = 1) {
-                for (auto i = 0; i < num_threads; ++i) {
-                    worker_threads_.emplace_back(
-                        std::bind(&thread_base::do_run, this));
-                }
+                o::emplace_n(worker_threads_, num_threads,
+                             std::bind(&thread_base::do_run, this));
             }
 
             /** implemented by the application to perform actual work */
@@ -119,8 +118,8 @@ namespace o::io {
             std::mutex thread_base_mutex_;
             std::vector<std::thread> worker_threads_;
         };
-    }
-    
+    } // namespace detail
+
     /** base class for applications that want to perform io
      \snippet ioapp.cpp ioapp_base_example
      */
@@ -145,9 +144,8 @@ namespace o::io {
         /** underlying executor type */
         using executor_type = boost::asio::io_context::executor_type;
 
-        /** Run the application the callers this thread. This call will return as
-         * soon as
-         * the application runs out of work. */
+        /** Run the application the callers this thread. This call will return
+         * as soon as the application runs out of work. */
         template <typename Opt = ConcurrencyOptions>
         typename std::enable_if<!ccy::opt_app_manages_threads<Opt>::value,
                                 int>::type
@@ -193,7 +191,8 @@ namespace o::io {
          */
         template <typename Opt = ConcurrencyOptions>
         constexpr bool call_is_safe() {
-            return o::ccy::opt_external_call_safe<Opt>::value && call_is_in_app();
+            return o::ccy::opt_external_call_safe<Opt>::value &&
+                   call_is_in_app();
         }
 
         /**
@@ -241,9 +240,8 @@ namespace o::io {
          * the application and exit after that. */
         bool app_allow_exit(int reason = 0) {
 
-            this->dispatch([this, reason]() {
-                return_code_ = this->on_app_exit(reason);
-            });
+            this->dispatch(
+                [this, reason]() { return_code_ = this->on_app_exit(reason); });
 
             if (object_work_guard_.owns_work()) {
                 object_work_guard_.reset();
@@ -341,29 +339,26 @@ namespace o::io {
          */
         virtual void do_run() override {
 
-            if
-                constexpr(ccy::opt_internal_call_safe<ConcurrencyOptions>::value) {
-                    auto startup_call_lock = std::lock_guard(this->base_mtx());
-                    on_app_started();
-                }
-            else
+            if constexpr (ccy::opt_internal_call_safe<
+                              ConcurrencyOptions>::value) {
+                auto startup_call_lock = std::lock_guard(this->base_mtx());
+                on_app_started();
+            } else
                 on_app_started();
 
             this->context().run();
 
-            if
-                constexpr(ccy::opt_internal_call_safe<ConcurrencyOptions>::value) {
-                    auto startup_call_lock = std::lock_guard(this->base_mtx());
-                    on_app_stopped();
-                }
-            else
+            if constexpr (ccy::opt_internal_call_safe<
+                              ConcurrencyOptions>::value) {
+                auto startup_call_lock = std::lock_guard(this->base_mtx());
+                on_app_stopped();
+            } else
                 on_app_stopped();
         }
 
       private:
-                  
         int return_code_ = -1;
-                  
+
         context_type ctx_;
         boost::asio::executor_work_guard<executor_type> object_work_guard_{
             ctx_.get_executor()};
