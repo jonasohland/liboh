@@ -136,7 +136,7 @@ namespace o::io {
 
         /** applications thread option (either o::threads::single or
          * o::threads::safe) */
-        using ccy_option = ConcurrencyOptions;
+        using ccy_options = ConcurrencyOptions;
 
         /** underlying io context type */
         using context_type = boost::asio::io_context;

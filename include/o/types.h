@@ -12,8 +12,8 @@
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -25,12 +25,12 @@
 
 #pragma once
 
-#include <mutex>
 #include <boost/asio/io_context.hpp>
-#include <boost/tti/tti.hpp>
 #include <boost/mpl/lambda.hpp>
 #include <boost/mpl/placeholders.hpp>
+#include <boost/tti/tti.hpp>
 #include <boost/type_traits/is_same.hpp>
+#include <mutex>
 
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
 #define O_NET_POSIX
@@ -53,7 +53,7 @@ namespace o {
                   std::function<R(Args...)>,
                   std::reference_wrapper<
                       typename std::remove_reference<F>::type>> {};
-    }
+    } // namespace type_traits
 
     namespace messages {
 
@@ -64,17 +64,20 @@ namespace o {
         } // namespace detail
 
         template <typename Message>
-        using is_direction_supported = detail::has_member_function_set_direction<
-            Message, void, boost::mpl::vector<bool>,
-            boost::function_types::const_qualified>;
+        using is_direction_supported =
+            detail::has_member_function_set_direction<
+                Message, void, boost::mpl::vector<bool>,
+                boost::function_types::const_qualified>;
 
         template <typename Message, typename Ty = void>
         using enable_if_direction_supported =
             std::enable_if<is_direction_supported<Message>::value>;
 
         template <typename Message>
-        using is_notify_send_supported = detail::has_member_function_notify_send<
-            Message, void, boost::mpl::vector<>, boost::function_types::const_qualified>;
+        using is_notify_send_supported =
+            detail::has_member_function_notify_send<
+                Message, void, boost::mpl::vector<>,
+                boost::function_types::const_qualified>;
 
         template <typename Message>
         using is_notify_send_done_supported =
@@ -121,7 +124,8 @@ namespace o {
 
     namespace ccy {
 
-        // used to indicate that the object will be used in a single threaded context
+        // used to indicate that the object will be used in a single threaded
+        // context
         struct unsafe {
             static constexpr const bool internal_api_safe = false;
             static constexpr const bool external_api_safe = false;
@@ -136,15 +140,26 @@ namespace o {
             static constexpr const bool external_api_safe = false;
             static constexpr const bool app_manages_threads = true;
             static constexpr const bool prefer_strands = true;
-            static constexpr const int asio_io_ctx_ccy_hint = BOOST_ASIO_CONCURRENCY_HINT_SAFE;
+            static constexpr const int asio_io_ctx_ccy_hint =
+                BOOST_ASIO_CONCURRENCY_HINT_SAFE;
         };
-        
+
         struct none {
             static constexpr const bool internal_api_safe = false;
             static constexpr const bool external_api_safe = false;
             static constexpr const bool app_manages_threads = false;
             static constexpr const bool prefer_strands = true;
-            static constexpr const int asio_io_ctx_ccy_hint = BOOST_ASIO_CONCURRENCY_HINT_SAFE;
+            static constexpr const int asio_io_ctx_ccy_hint =
+                BOOST_ASIO_CONCURRENCY_HINT_SAFE;
+        };
+
+        struct strict {
+            static constexpr const bool internal_api_safe = true;
+            static constexpr const bool external_api_safe = true;
+            static constexpr const bool app_manages_threads = true;
+            static constexpr const bool prefer_strands = false;
+            static constexpr const int asio_io_ctx_ccy_hint =
+                BOOST_ASIO_CONCURRENCY_HINT_SAFE;
         };
 
         template <typename ConcurrencyOption>
@@ -219,10 +234,10 @@ namespace o {
         struct opt_enable_if_ccy_aware<ccy::safe, Ty> {
             using type = Ty;
         };
-        
+
         template <class Op, class Ty = void>
         struct opt_enable_if_ccy_unaware {};
-        
+
         template <class Ty>
         struct opt_enable_if_ccy_unaware<ccy::none, Ty> {
             using type = Ty;
@@ -259,9 +274,9 @@ namespace o {
 
             template <typename Mutex>
             class single_mtx_base<false, Mutex> {};
-        }
+        } // namespace detail
 
-    } // namespace threads
+    } // namespace ccy
 
     template <typename Thing, bool DoLock, typename Mutex = std::mutex>
     class safe_visitable : public ccy::detail::single_mtx_base<DoLock, Mutex> {
@@ -270,7 +285,8 @@ namespace o {
 
       public:
         template <typename... Args>
-        explicit safe_visitable(Args... args) : thing(std::forward<Args>(args)...) {}
+        explicit safe_visitable(Args... args)
+            : thing(std::forward<Args>(args)...) {}
 
         template <bool Enable = DoLock, typename Visitor>
         typename std::enable_if<Enable>::type apply(Visitor v) {
@@ -287,9 +303,9 @@ namespace o {
         typename std::enable_if<Enable>::type apply_adopt(Visitor v) {
             v(thing, this->mutex());
             //       ^^^^^^^^^^^^^
-            // if you are getting an error like: "calling private constructor of 'mutex'"
-            // here, you tried to visit the mutex by copying, which is illegal. a legal
-            // lambda to use would be:
+            // if you are getting an error like: "calling private constructor of
+            // 'mutex'" here, you tried to visit the mutex by copying, which is
+            // illegal. a legal lambda to use would be:
             //
             //     [](auto& thing, Mutex& mtx){
             //         thing->do_stuff();
@@ -308,7 +324,8 @@ namespace o {
     };
 
     template <typename Visitable, bool DoLock, typename Mutex = std::mutex>
-    class enable_safe_visit : public ccy::detail::single_mtx_base<DoLock, Mutex> {
+    class enable_safe_visit
+        : public ccy::detail::single_mtx_base<DoLock, Mutex> {
 
       public:
         template <bool Enable = DoLock, typename Visitor>
@@ -326,9 +343,9 @@ namespace o {
         typename std::enable_if<Enable>::type apply_adopt(Visitor v) {
             v(*static_cast<Visitable*>(this), this->mutex());
             //                                ^^^^^^^^^^^^^
-            // if you are getting an error like: "calling private constructor of 'mutex'"
-            // here, you tried to visit the mutex by copying, which is illegal. a legal
-            // lambda to use would be:
+            // if you are getting an error like: "calling private constructor of
+            // 'mutex'" here, you tried to visit the mutex by copying, which is
+            // illegal. a legal lambda to use would be:
             //
             //     [](auto& thing, Mutex& mtx){
             //         thing->do_stuff();
@@ -339,20 +356,22 @@ namespace o {
     };
 
     namespace ccy {
-        template <typename Thing, typename ThreadOption, typename Mutex = std::mutex>
+        template <typename Thing, typename ThreadOption,
+                  typename Mutex = std::mutex>
         struct opt_safe_visitable
             : public safe_visitable<Thing, ccy::is_safe<ThreadOption>::value,
                                     Mutex> {
             using thread_option = ThreadOption;
         };
 
-        template <typename Visitable, typename ThreadOption, typename Mutex = std::mutex>
+        template <typename Visitable, typename ThreadOption,
+                  typename Mutex = std::mutex>
         struct opt_enable_safe_visit
             : public enable_safe_visit<
                   Visitable, ccy::is_safe<ThreadOption>::value, Mutex> {
             using thread_option = ThreadOption;
         };
-    }
+    } // namespace ccy
 
     template <typename Visitor, typename SafeVisitable>
     void safe_visit(Visitor vis, SafeVisitable& svis) {

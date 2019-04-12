@@ -12,8 +12,8 @@
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -24,6 +24,12 @@
 // SOFTWARE.
 
 #include <o.h>
+
+struct application : o::io::io_app_base<o::ccy::strict> {
+
+    o::io::writer<std::string, o::ccy::strict, std::queue<std::string*>,
+                  std::mutex>
+};
 
 //! [simpletimer_example]
 using namespace std::chrono_literals;
