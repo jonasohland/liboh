@@ -32,7 +32,6 @@ int main() {
 
     // the context we will perform io on
     boost::asio::io_context ctx;
-
     // call the repeatedly
     o::io::every(ctx, 1s).repeat(
         [cnt = 5](boost::system::error_code ec) mutable {

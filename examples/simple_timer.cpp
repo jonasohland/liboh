@@ -25,12 +25,6 @@
 
 #include <o.h>
 
-struct application : o::io::io_app_base<o::ccy::strict> {
-
-    o::io::writer<std::string, o::ccy::strict, std::queue<std::string*>,
-                  std::mutex>
-};
-
 //! [simpletimer_example]
 using namespace std::chrono_literals;
 
