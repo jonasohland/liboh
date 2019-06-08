@@ -254,7 +254,7 @@ namespace o::io {
         /** Wait for all threads owned by the app to exit. When this
          * function
          * returns, it is safe to destroy the app. */
-        void app_join() const { this->await_threads_end(); }
+        void app_join() { this->await_threads_end(); }
 
         /** post a handler to the apps executor*/
         template <typename... Ts>

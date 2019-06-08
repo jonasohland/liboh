@@ -201,11 +201,13 @@ namespace o::io::net {
             on_dgram_received(boost::beast::buffers_to_string(buf_.data()));
 
             buf_.consume(bytes_s);
+            
+            dgram_do_receive_impl();
         }
 
         void dgram_do_receive_impl() {
             sock_.async_receive_from(
-                buf_.prepare(1024), last_remote_endp_,
+                buf_.prepare(4096), last_remote_endp_,
                 std::bind(&datagram_device::on_dgram_received_impl, this,
                           std::placeholders::_1, std::placeholders::_2));
         }
