@@ -52,7 +52,7 @@ namespace o::io::messages {
                 msg->storage().reserve( boost::asio::buffer_size( buffers ) );
 
                 for ( const auto& buffer :
-                      boost::beast::detail::buffers_range( buffers ) ) {
+                     boost::beast::buffers_range( buffers ) ) {
                     std::copy( boost::asio::buffers_begin( buffer ),
                                boost::asio::buffers_end( buffer ),
                                std::back_inserter( msg->data_ ) );

@@ -24,13 +24,15 @@ macro(liboh_setup input_target)
     set(Boost_USE_STATIC_LIBS ON)
     set(Boost_USE_MULTITHREADED ON)	
 
-    find_package(Boost COMPONENTS 
+    find_package(Boost 1.69 COMPONENTS
                         "system" 
                         "date_time" 
                         "regex" 
                         REQUIRED)
                         
     target_link_libraries(${input_target} PUBLIC ${Boost_LIBRARIES})
+
+    target_link_libraries(${input_target} PUBLIC Boost::headers)
 
     if(WIN32)
         target_compile_options(${input_target} PUBLIC "/bigobj")

@@ -56,7 +56,7 @@ namespace o::io::messages {
             std::string buf;
             buf.reserve( boost::asio::buffer_size( seq ) );
 
-            for ( auto buffer : boost::beast::detail::buffers_range( seq ) ) {
+            for ( auto buffer : boost::beast::buffers_range( seq ) ) {
                 buf.append( static_cast< char const* >( buffer.data() ), buffer.size() );
             }
 
