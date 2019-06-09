@@ -25,6 +25,10 @@
 
 #pragma once
 
+#define O_STR_IMPL(x) #x
+#define O_STR(x) O_STR_IMPL(x)
+#define O_THIS_TARGET_VERSION() O_STR(VERSION_TAG)
+
 #include "o/ccy.h"
 #include "o/io.h"
 #include "o/sequence.h"

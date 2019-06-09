@@ -6,6 +6,7 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/liboh.cmake")
 
 option(liboh_generate_examples "" OFF)
 option(liboh_generate_docs "" OFF)
+option(liboh_use_version_tags "" ON)
 
 file(GLOB_RECURSE LIBOH_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h")
 

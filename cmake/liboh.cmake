@@ -45,11 +45,29 @@ macro(liboh_setup input_target)
 
 endmacro(liboh_setup)
 
+macro(get_version_tag)
+
+    if(liboh_use_version_tags)
+
+        execute_process(COMMAND "git" "describe" "--tags" 
+                        OUTPUT_VARIABLE VERSION_TAG 
+                        ERROR_VARIABLE GIT_ERRORS
+                        ERROR_STRIP_TRAILING_WHITESPACE
+                        OUTPUT_STRIP_TRAILING_WHITESPACE)
+                    
+    else()
+
+        set(VERSION_TAG "x.x")
+
+    endif()
+
+endmacro(get_version_tag)
+
 macro(version_tag input_target) 
 
-    if(NOT ${VERSION_TAG})
-        get_version_tag()
-    endif()
+    get_version_tag()
+
+    message(STATUS "Adding version tag ${VERSION_TAG} to target ${input_target}")
 
     target_compile_definitions(${input_target} PRIVATE VERSION_TAG=${VERSION_TAG})
 
