@@ -30,7 +30,9 @@ macro(liboh_setup input_target)
                         "regex" 
                         REQUIRED)
                         
-    target_link_libraries(${input_target} PUBLIC ${Boost_LIBRARIES})
+    target_link_libraries(${input_target} PUBLIC Boost::system)
+    target_link_libraries(${input_target} PUBLIC Boost::date_time)
+    target_link_libraries(${input_target} PUBLIC Boost::regex)
 
     target_link_libraries(${input_target} PUBLIC Boost::headers)
 
